@@ -1,0 +1,12 @@
+<html>
+    <head>
+    </head>
+    <body>
+        <h2>Authors</h2>
+        <ul>
+            {% for author in object_list %}
+                <li><a href="{% url 'edit_author' pk=author.id %}">{{ author.name }}</a></li>
+            {% endfor %}
+        </ul>
+    </body>
+</html>
