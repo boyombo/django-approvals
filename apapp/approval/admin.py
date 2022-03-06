@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from approval.models import Approval, ApprovalStep, ApprovalChange
+from approval.models import Approval, ApprovalStep, ApprovalChange, EmailMessage
 
 
 @admin.register(Approval)
@@ -28,4 +28,17 @@ class ApprovalChangeAdmin(admin.ModelAdmin):
         "final_value",
         "field_name",
         "field_type",
+    ]
+
+
+@admin.register(EmailMessage)
+class EmailMessageAdmin(admin.ModelAdmin):
+    list_display = [
+        'sender',
+        'recipient',
+        'subject',
+        'body',
+        'date_created',
+        'date_sent',
+        'status'
     ]

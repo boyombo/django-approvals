@@ -62,6 +62,24 @@ class ApprovalChange(models.Model):
         return f'{self.initial_value} - {self.final_value}'
 
 
+class EmailMessage(models.Model):
+    PENDING = 'PENDING'
+    SENT = 'SENT'
+    ERROR = 'ERROR'
+    EMAIL_STATUSES = ((PENDING, 'Pending'), (SENT, 'Sent'), (ERROR, 'Error'))
+
+    sender = models.CharField(max_length=200)
+    recipient = models.CharField(max_length=200)
+    subject = models.CharField(max_length=50)
+    body = models.TextField()
+    date_created = models.DateTimeField(default=timezone.now)
+    date_sent = models.DateTimeField(null=True)
+    status = models.CharField(max_length=20, choices=EMAIL_STATUSES)
+
+    def __str__(self):
+        return self.subject
+
+
 class ApprovalBase:
 
     def __init__(self, owner, obj):
