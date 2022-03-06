@@ -17,7 +17,7 @@ def edit_author(request, pk):
         form = AuthorForm(request.POST, instance=author)
         if form.is_valid():
             obj = form.save(commit=False)
-            BookApproval(request.user, obj)
+            BookApproval(request, obj)
             return redirect('authors')
     else:
         form = AuthorForm(instance=author)
@@ -35,7 +35,7 @@ def edit_book(request, pk):
         form = BookForm(request.POST, instance=book)
         if form.is_valid():
             obj = form.save(commit=False)
-            BookApproval(request.user, obj)
+            BookApproval(request, obj)
             return redirect('books')
     else:
         form = BookForm(instance=book)
