@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView
+from django.urls import reverse
 
 from approval.models import Approval, APPROVAL_PENDING
 from approval.models import approve_step, reject_step
@@ -15,9 +16,12 @@ def pending_approvals(request):
 def approval_detail(request, pk):
     approval = get_object_or_404(Approval, pk=pk)
     if request.method == "POST":
-        # import pdb;pdb.set_trace()
+        #import pdb;pdb.set_trace()
+        host_name = f'http://{request.get_host()}'
+        approval_url = reverse('approval_detail', args=[pk])
+        _url = f'{host_name}{approval_url}'
         if "approve" in request.POST:
-            approve_step(approval)
+            approve_step(approval, _url)
             return redirect("pending_approvals")
         else:
             return redirect("reject_approval", pk=pk)

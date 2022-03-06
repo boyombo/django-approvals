@@ -1,0 +1,7 @@
+Dear {{initiator}},
+
+Your approval request for {{item}} was rejected.
+The reason for rejection was {{reason}}.
+Please take this into consideration if you want to create another request
+
+Thank You

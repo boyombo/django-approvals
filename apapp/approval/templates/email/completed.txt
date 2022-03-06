@@ -1,0 +1,5 @@
+Dear {{initiator}},
+
+Your approval request for {{item}} has been approved.
+
+Thank You

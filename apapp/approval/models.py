@@ -2,18 +2,19 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.apps import apps
+from django.template.loader import get_template
 
 
 APPROVAL_PENDING = 0
 APPROVAL_APPROVED = 1
 APPROVAL_REJECTED = 2
-APPROVAL_STATUSES = enumerate(('Pending', 'Approved', 'Rejected'))
+APPROVAL_STATUSES = enumerate(("Pending", "Approved", "Rejected"))
 
 CHAR = 0
 INT = 1
 FLOAT = 2
 FK = 3
-FIELD_TYPES = enumerate(('Char', 'Int', 'Float', 'FK'))
+FIELD_TYPES = enumerate(("Char", "Int", "Float", "FK"))
 
 
 class Approval(models.Model):
@@ -24,14 +25,16 @@ class Approval(models.Model):
     initiated = models.DateTimeField(default=timezone.now)
     description = models.CharField(max_length=200, blank=True)
     rejection_reason = models.TextField(blank=True)
-    pending_on = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name='approver')
+    pending_on = models.ForeignKey(
+        User, null=True, on_delete=models.SET_NULL, related_name="approver"
+    )
 
     def __str__(self):
         return str(self.model_name)
 
     @property
     def current_step(self):
-        steps = self.approvalstep_set.filter(status=APPROVAL_PENDING).order_by('step')
+        steps = self.approvalstep_set.filter(status=APPROVAL_PENDING).order_by("step")
         try:
             return steps[0]
         except IndexError:
@@ -46,7 +49,7 @@ class ApprovalStep(models.Model):
     last_step = models.BooleanField(default=False)
 
     def __str__(self):
-        return f'{self.approval} Step {self.step}'
+        return f"{self.approval} Step {self.step}"
 
 
 class ApprovalChange(models.Model):
@@ -59,14 +62,14 @@ class ApprovalChange(models.Model):
     field_type = models.PositiveIntegerField(choices=FIELD_TYPES, default=0)
 
     def __str__(self):
-        return f'{self.initial_value} - {self.final_value}'
+        return f"{self.initial_value} - {self.final_value}"
 
 
 class EmailMessage(models.Model):
-    PENDING = 'PENDING'
-    SENT = 'SENT'
-    ERROR = 'ERROR'
-    EMAIL_STATUSES = ((PENDING, 'Pending'), (SENT, 'Sent'), (ERROR, 'Error'))
+    PENDING = "PENDING"
+    SENT = "SENT"
+    ERROR = "ERROR"
+    EMAIL_STATUSES = ((PENDING, "Pending"), (SENT, "Sent"), (ERROR, "Error"))
 
     sender = models.CharField(max_length=200)
     recipient = models.CharField(max_length=200)
@@ -81,10 +84,10 @@ class EmailMessage(models.Model):
 
 
 class ApprovalBase:
-
-    def __init__(self, owner, obj):
+    def __init__(self, request, obj):
         self.obj = obj
-        self.owner = owner
+        self.owner = request.user
+        self.hostname = f'http://{request.get_host()}'
 
         approvers = self.get_approvers()
         first_approver = approvers[0]
@@ -95,27 +98,27 @@ class ApprovalBase:
                 approval=self.approval,
                 approver=approver,
                 status=APPROVAL_PENDING,
-                step=idx+1,
-                last_step=is_last_step
+                step=idx + 1,
+                last_step=is_last_step,
             )
         self.save_changes()
 
     def _is_fk(self, fld_name):
         try:
-            fk = getattr(self.obj, f'{fld_name}_id')
+            fk = getattr(self.obj, f"{fld_name}_id")
         except AttributeError:
             return False
         return True
 
     def save_changes(self):
-        #import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace()
         original = self.obj._meta.model.objects.get(pk=self.obj.pk)
         fields = [fld for fld in original._meta.fields if not fld.primary_key]
         for fld in fields:
             if self._is_fk(fld.name):
                 field_type = FK
-                orig_val = getattr(original, f'{fld.name}_id')
-                new_val = getattr(self.obj, f'{fld.name}_id')
+                orig_val = getattr(original, f"{fld.name}_id")
+                new_val = getattr(self.obj, f"{fld.name}_id")
                 orig_text = str(getattr(original, fld.name))
                 new_text = str(getattr(self.obj, fld.name))
             else:
@@ -132,24 +135,32 @@ class ApprovalBase:
                     initial_text=orig_text,
                     final_text=new_text,
                     field_name=fld.name,
-                    field_type=field_type
+                    field_type=field_type,
                 )
 
     def save_approval(self, first_approver):
         app_label = self.obj._meta.app_label
         model_name = self.obj._meta.model_name
-        model = f'{app_label}.{model_name}'
-        description = f'{self.owner.username} edited {self.obj}'
+        model = f"{app_label}.{model_name}"
+        description = f"{self.owner.username} edited {self.obj}"
+
+        # email message
+        templ = get_template("email/started.txt")
+        url = f'{self.hostname}/approvals/detail/{self.obj.pk}/'
+        ctx = {"approver": first_approver.username, "link": url}
+        body = templ.render(ctx)
+        build_email("Approval Pending", first_approver.email, body)
+
         return Approval.objects.create(
             initiator=self.owner,
             model_name=model,
             object_id=self.obj.pk,
             description=description,
-            pending_on=first_approver
+            pending_on=first_approver,
         )
 
 
-def approve_step(approval):
+def approve_step(approval, url):
     step = approval.current_step
     if step:
         if not step.last_step:
@@ -159,16 +170,22 @@ def approve_step(approval):
             next_step = approval.current_step
             approval.pending_on = next_step.approver
             approval.save()
+
+            # email message
+            templ = get_template("email/nextstep.txt")
+            ctx = {"approver": next_step.approver.username, "link": url}
+            body = templ.render(ctx)
+            build_email("Approval Pending", next_step.approver.email, body)
         else:
             # get object
-            app_label, model_name = approval.model_name.split('.')
+            app_label, model_name = approval.model_name.split(".")
             model = apps.get_model(app_label, model_name)
             obj = model.objects.get(pk=approval.object_id)
 
             # apply changes
             for change in approval.approvalchange_set.all():
                 if change.field_type == FK:
-                    fld_name = f'{change.field_name}_id'
+                    fld_name = f"{change.field_name}_id"
                 else:
                     fld_name = change.field_name
                 setattr(obj, fld_name, change.final_value)
@@ -177,6 +194,12 @@ def approve_step(approval):
             approval.save()
             step.status = APPROVAL_APPROVED
             step.save()
+
+            # email message
+            templ = get_template("email/completed.txt")
+            ctx = {"initiator": str(approval.initiator), "item": str(obj)}
+            body = templ.render(ctx)
+            build_email("Request Approved", approval.initiator.email, body)
 
 
 def reject_step(approval, reason):
@@ -187,3 +210,22 @@ def reject_step(approval, reason):
         approval.status = APPROVAL_REJECTED
         approval.rejected_reason = reason
         approval.save()
+
+        templ = get_template("email/rejected.txt")
+        ctx = {
+            "initiator": str(approval.initiator),
+            "item": approval.description,
+            "reason": reason,
+        }
+        body = templ.render(ctx)
+        build_email("Approval Rejected", approval.initiator.email, body)
+
+
+def build_email(subject, recipient, body):
+    EmailMessage.objects.create(
+        sender="approvals@ng.airtel.com",
+        recipient=recipient,
+        subject=subject,
+        body=body,
+        status=EmailMessage.PENDING,
+    )

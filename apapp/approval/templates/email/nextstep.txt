@@ -1,0 +1,6 @@
+Dear {{approver}},
+
+There is an approval awaiting your attention.
+Please click on {{link}} to review it.
+
+Thank You
