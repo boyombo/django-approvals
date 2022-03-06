@@ -53,6 +53,8 @@ class ApprovalChange(models.Model):
     approval = models.ForeignKey(Approval, on_delete=models.CASCADE)
     initial_value = models.CharField(max_length=200)
     final_value = models.CharField(max_length=200)
+    initial_text = models.CharField(max_length=200, blank=True)
+    final_text = models.CharField(max_length=200, blank=True)
     field_name = models.CharField(max_length=100)
     field_type = models.PositiveIntegerField(choices=FIELD_TYPES, default=0)
 
@@ -66,8 +68,9 @@ class ApprovalBase:
         self.obj = obj
         self.owner = owner
 
-        self.approval = self.save_approval()
         approvers = self.get_approvers()
+        first_approver = approvers[0]
+        self.approval = self.save_approval(first_approver)
         for idx, approver in enumerate(approvers):
             is_last_step = True if idx + 1 == len(approvers) else False
             ApprovalStep.objects.create(
@@ -95,20 +98,26 @@ class ApprovalBase:
                 field_type = FK
                 orig_val = getattr(original, f'{fld.name}_id')
                 new_val = getattr(self.obj, f'{fld.name}_id')
+                orig_text = str(getattr(original, fld.name))
+                new_text = str(getattr(self.obj, fld.name))
             else:
                 field_type = CHAR
                 orig_val = getattr(original, fld.name)
                 new_val = getattr(self.obj, fld.name)
+                orig_text = orig_val
+                new_text = new_val
             if orig_val != new_val:
                 ApprovalChange.objects.create(
                     approval=self.approval,
                     initial_value=str(orig_val),
                     final_value=str(new_val),
+                    initial_text=orig_text,
+                    final_text=new_text,
                     field_name=fld.name,
                     field_type=field_type
                 )
 
-    def save_approval(self):
+    def save_approval(self, first_approver):
         app_label = self.obj._meta.app_label
         model_name = self.obj._meta.model_name
         model = f'{app_label}.{model_name}'
@@ -117,7 +126,8 @@ class ApprovalBase:
             initiator=self.owner,
             model_name=model,
             object_id=self.obj.pk,
-            description=description
+            description=description,
+            pending_on=first_approver
         )
 
 
@@ -127,6 +137,10 @@ def approve_step(approval):
         if not step.last_step:
             step.status = APPROVAL_APPROVED
             step.save()
+            # current step has moved forward
+            next_step = approval.current_step
+            approval.pending_on = next_step.approver
+            approval.save()
         else:
             # get object
             app_label, model_name = approval.model_name.split('.')
@@ -135,7 +149,11 @@ def approve_step(approval):
 
             # apply changes
             for change in approval.approvalchange_set.all():
-                setattr(obj, change.field_name, change.final_value)
+                if change.field_type == FK:
+                    fld_name = f'{change.field_name}_id'
+                else:
+                    fld_name = change.field_name
+                setattr(obj, fld_name, change.final_value)
             obj.save()
             approval.status = APPROVAL_APPROVED
             approval.save()

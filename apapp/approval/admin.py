@@ -11,7 +11,7 @@ class ApprovalAdmin(admin.ModelAdmin):
         "status",
         "initiated",
         "model_name",
-        "object_id",
+        "pending_on",
     ]
 
 

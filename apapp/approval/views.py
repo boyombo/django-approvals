@@ -7,8 +7,9 @@ from approval.forms import RejectionForm
 
 
 def pending_approvals(request):
-    qset = Approval.objects.filter(status=APPROVAL_PENDING)
-    return render(request, 'approval/list.html', {'approvals': qset})
+    qset = Approval.objects.filter(status=APPROVAL_PENDING, pending_on=request.user)
+    #import pdb;pdb.set_trace()
+    return render(request, "approval/list.html", {"approvals": qset})
 
 
 def approval_detail(request, pk):
@@ -28,7 +29,7 @@ def reject_approval(request, pk):
     if request.method == "POST":
         form = RejectionForm(request.POST)
         if form.is_valid():
-            reject_step(approval, form.cleaned_data['reason'])
+            reject_step(approval, form.cleaned_data["reason"])
             return redirect("pending_approvals")
 
     form = RejectionForm()

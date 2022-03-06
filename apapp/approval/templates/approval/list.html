@@ -10,7 +10,7 @@
                 <th>Date</th>
                 <th>Details</th>
             </tr>
-            {% for approval in object_list %}
+            {% for approval in approvals %}
                 <td>{{ approval.description }}</td>
                 <td>{{ approval.initiator }}</td>
                 <td>{{ approval.initiated|date:"Y-m-d" }}</td>

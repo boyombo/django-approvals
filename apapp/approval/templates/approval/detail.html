@@ -13,8 +13,8 @@
         {% for change in approval.approvalchange_set.all %}
             <tr>
                 <td>{{change.field_name|title}}</td>
-                <td>{{change.initial_value}}</td>
-                <td>{{change.final_value}}</td>
+                <td>{{change.initial_text}}</td>
+                <td>{{change.final_text}}</td>
             </tr>
         {% endfor %}
         </table>
