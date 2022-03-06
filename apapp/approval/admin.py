@@ -5,7 +5,14 @@ from approval.models import Approval, ApprovalStep, ApprovalChange
 
 @admin.register(Approval)
 class ApprovalAdmin(admin.ModelAdmin):
-    list_display = ["initiator", "status", "model_name", "object_id"]
+    list_display = [
+        "description",
+        "initiator",
+        "status",
+        "initiated",
+        "model_name",
+        "object_id",
+    ]
 
 
 @admin.register(ApprovalStep)

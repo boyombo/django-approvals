@@ -2,11 +2,21 @@
     <head>
     </head>
     <body>
-        <h2>Authors</h2>
-        <ul>
+        <h2>Approvals Pending</h2>
+        <table cellspacing=0 cellpadding=10 border=1>
+            <tr>
+                <th>Description</th>
+                <th>User</th>
+                <th>Date</th>
+                <th>Details</th>
+            </tr>
             {% for approval in object_list %}
-                <li><a href="{% url 'edit_author' pk=approval.id %}">{{ approval.initiator }}</a></li>
+                <td>{{ approval.description }}</td>
+                <td>{{ approval.initiator }}</td>
+                <td>{{ approval.initiated|date:"Y-m-d" }}</td>
+                <td><a href="{% url 'approval_detail' pk=approval.id %}">details</a></td>
             {% endfor %}
-        </ul>
+            </tr>
+        </table>
     </body>
 </html>

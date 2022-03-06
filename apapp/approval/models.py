@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.apps import apps
 
 
 APPROVAL_PENDING = 0
@@ -22,9 +23,18 @@ class Approval(models.Model):
     object_id = models.PositiveIntegerField()
     initiated = models.DateTimeField(default=timezone.now)
     description = models.CharField(max_length=200, blank=True)
+    rejection_reason = models.TextField(blank=True)
 
     def __str__(self):
         return str(self.model_name)
+
+    @property
+    def current_step(self):
+        steps = self.approvalstep_set.filter(status=APPROVAL_PENDING).order_by('step')
+        try:
+            return steps[0]
+        except IndexError:
+            return None
 
 
 class ApprovalStep(models.Model):
@@ -101,9 +111,42 @@ class ApprovalBase:
         app_label = self.obj._meta.app_label
         model_name = self.obj._meta.model_name
         model = f'{app_label}.{model_name}'
+        description = f'{self.owner.username} edited {self.obj}'
         return Approval.objects.create(
             initiator=self.owner,
             model_name=model,
-            object_id=self.obj.pk
+            object_id=self.obj.pk,
+            description=description
         )
 
+
+def approve_step(approval):
+    step = approval.current_step
+    if step:
+        if not step.last_step:
+            step.status = APPROVAL_APPROVED
+            step.save()
+        else:
+            # get object
+            app_label, model_name = approval.model_name.split('.')
+            model = apps.get_model(app_label, model_name)
+            obj = model.objects.get(pk=approval.object_id)
+
+            # apply changes
+            for change in approval.approvalchange_set.all():
+                setattr(obj, change.field_name, change.final_value)
+            obj.save()
+            approval.status = APPROVAL_APPROVED
+            approval.save()
+            step.status = APPROVAL_APPROVED
+            step.save()
+
+
+def reject_step(approval, reason):
+    step = approval.current_step
+    if step:
+        step.status = APPROVAL_REJECTED
+        step.save()
+        approval.status = APPROVAL_REJECTED
+        approval.rejected_reason = reason
+        approval.save()

@@ -1,0 +1,27 @@
+<html>
+    <head>
+    </head>
+    <body>
+        <h3>Details of Approval</h3>
+        <h3>{{approval.description}}</h3>
+        <table cellpadding=10 cellspacing=0 border=1>
+            <tr>
+                <th>Data</th>
+                <th>Initial Value</th>
+                <th>Changed Value</th>
+            </tr>
+        {% for change in approval.approvalchange_set.all %}
+            <tr>
+                <td>{{change.field_name|title}}</td>
+                <td>{{change.initial_value}}</td>
+                <td>{{change.final_value}}</td>
+            </tr>
+        {% endfor %}
+        </table>
+        <form action="." method="post">{% csrf_token %}
+            <input type="submit" name="approve" value="Approve">
+            <input type="submit" name="reject" value="Reject">
+        </form>
+
+    </body>
+</html>
