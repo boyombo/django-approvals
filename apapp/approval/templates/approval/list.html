@@ -1,0 +1,12 @@
+<html>
+    <head>
+    </head>
+    <body>
+        <h2>Authors</h2>
+        <ul>
+            {% for approval in object_list %}
+                <li><a href="{% url 'edit_author' pk=approval.id %}">{{ approval.initiator }}</a></li>
+            {% endfor %}
+        </ul>
+    </body>
+</html>
