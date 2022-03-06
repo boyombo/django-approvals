@@ -24,6 +24,7 @@ class Approval(models.Model):
     initiated = models.DateTimeField(default=timezone.now)
     description = models.CharField(max_length=200, blank=True)
     rejection_reason = models.TextField(blank=True)
+    pending_on = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name='approver')
 
     def __str__(self):
         return str(self.model_name)

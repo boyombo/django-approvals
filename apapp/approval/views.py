@@ -1,14 +1,14 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView
 
-from approval.models import Approval
+from approval.models import Approval, APPROVAL_PENDING
 from approval.models import approve_step, reject_step
 from approval.forms import RejectionForm
 
 
-class PendingApprovalsView(ListView):
-    model = Approval
-    template_name = "approval/list.html"
+def pending_approvals(request):
+    qset = Approval.objects.filter(status=APPROVAL_PENDING)
+    return render(request, 'approval/list.html', {'approvals': qset})
 
 
 def approval_detail(request, pk):
